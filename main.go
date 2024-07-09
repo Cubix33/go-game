@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/veandco/go-sdl2/sdl"
-	"./player" 
+    "gitlab.com/algorithm-avengers2/side-scrolling-shooter-game/player"
+    "github.com/veandco/go-sdl2/sdl"
 )
 
 const (
@@ -35,7 +35,7 @@ func main() {
 	}
 	defer renderer.Destroy()
 
-	plr, err := player.newPlayer(renderer) 
+	plr, err := newPlayer(renderer)
 	if err != nil {
 		fmt.Println("creating player:", err)
 		return
