@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/veandco/go-sdl2/sdl"
+	"./player" 
 )
 
 const (
@@ -35,7 +35,7 @@ func main() {
 	}
 	defer renderer.Destroy()
 
-	plr, err := newPlayer(renderer)
+	plr, err := player.newPlayer(renderer) 
 	if err != nil {
 		fmt.Println("creating player:", err)
 		return
