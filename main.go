@@ -1,59 +1,194 @@
 package main
 
 import (
-	"fmt"
-    "gitlab.com/algorithm-avengers2/side-scrolling-shooter-game/player"
-    "github.com/veandco/go-sdl2/sdl"
+	"log"
+	"math"
+	"time"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 const (
-	screenWidth  = 600
-	screenHeight = 800
+	screenWidth     = 800
+	screenHeight    = 600
+	playerSpeed     = 4.0
+	playerWidth     = 64
+	playerHeight    = 64
+	playerImagePath = "sprites/player.png"
+	bulletSpeed     = 8.0
+	bulletWidth     = 8
+	bulletHeight    = 8
+	enemySpeed      = 2.0
 )
 
+var (
+	playerImage *ebiten.Image
+	bulletImage *ebiten.Image
+	playerX     = screenWidth / 2
+	playerY     = screenHeight - playerHeight - 20
+	bullets     []*bullet
+	enemies     []*enemy
+)
+
+type bullet struct {
+	x, y  float64
+	alive bool
+}
+
+type enemy struct {
+	x, y  float64
+	alive bool
+}
+
+func update(screen *ebiten.Image) error {
+	
+	handlePlayerMovement()
+
+	
+	handleShooting()
+
+	
+	updateBullets()
+
+	
+	updateEnemies()
+
+	
+	handleCollisions()
+
+	return nil
+}
+
+func draw(screen *ebiten.Image) {
+	
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(playerX, playerY)
+	screen.DrawImage(playerImage, op)
+
+	
+	drawBullets(screen)
+
+	
+	drawEnemies(screen)
+
+	
+	ebitenutil.DebugPrint(screen, "Press arrow keys to move, space to shoot")
+
+	
+
 func main() {
-	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
-		fmt.Println("initializing SDL:", err)
-		return
-	}
-
-	window, err := sdl.CreateWindow(
-		"Gaming in Go Episode 2",
-		sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-		screenWidth, screenHeight,
-		sdl.WINDOW_OPENGL)
+	
+	var err error
+	playerImage, _, err = ebitenutil.NewImageFromFile(playerImagePath)
 	if err != nil {
-		fmt.Println("initializing window:", err)
-		return
+		log.Fatal(err)
 	}
-	defer window.Destroy()
 
-	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
+	bulletImage, err = ebiten.NewImage(bulletWidth, bulletHeight, ebiten.FilterDefault)
 	if err != nil {
-		fmt.Println("initializing renderer:", err)
-		return
+		log.Fatal(err)
 	}
-	defer renderer.Destroy()
+	bulletImage.Fill(color.RGBA{R: 255, G: 0, B: 0, A: 255}) 
 
-	plr, err := newPlayer(renderer)
-	if err != nil {
-		fmt.Println("creating player:", err)
-		return
+	
+	ebiten.SetWindowSize(screenWidth, screenHeight)
+	ebiten.SetWindowTitle("Side-Scrolling Shooter Game")
+
+	if err := ebiten.RunGame(&game{}); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func handlePlayerMovement() {
+	
+	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
+		playerX -= playerSpeed
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
+		playerX += playerSpeed
 	}
 
-	for {
-		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
-			switch event.(type) {
-			case *sdl.QuitEvent:
-				return
+	
+	if playerX < 0 {
+		playerX = 0
+	}
+	if playerX > screenWidth-playerWidth {
+		playerX = screenWidth - playerWidth
+	}
+}
+
+func handleShooting() {
+	
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		bullets = append(bullets, &bullet{
+			x:     playerX + playerWidth/2 - bulletWidth/2,
+			y:     playerY,
+			alive: true,
+		})
+	}
+}
+
+func updateBullets() {
+	
+	for _, b := range bullets {
+		if b.alive {
+			b.y -= bulletSpeed
+		}
+	}
+}
+
+func updateEnemies() {
+	
+	for _, e := range enemies {
+		if e.alive {
+			e.y += enemySpeed
+		}
+	}
+}
+
+func handleCollisions() {
+	
+	for _, b := range bullets {
+		if !b.alive {
+			continue
+		}
+		for _, e := range enemies {
+			if !e.alive {
+				continue
+			}
+			if collision(b.x, b.y, bulletWidth, bulletHeight, e.x, e.y, playerWidth, playerHeight) {
+				b.alive = false
+				e.alive = false
+				
 			}
 		}
+	}
+}
 
-		renderer.SetDrawColor(255, 255, 255, 255)
-		renderer.Clear()
+func collision(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
+	return x1 < x2+w2 && x1+w1 > x2 && y1 < y2+h2 && y1+h1 > y2
+}
 
-		plr.draw(renderer)
+func drawBullets(screen *ebiten.Image) {
+	
+	for _, b := range bullets {
+		if b.alive {
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(b.x, b.y)
+			screen.DrawImage(bulletImage, op)
+		}
+	}
+}
 
-		renderer.Present()
+func drawEnemies(screen *ebiten.Image) {
+	
+	for _, e := range enemies {
+		if e.alive {
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(e.x, e.y)
+			screen.DrawImage(playerImage, op) 
+		}
 	}
 }
