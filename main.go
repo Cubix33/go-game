@@ -2,7 +2,8 @@ package main
 
 import (
 	"log"
-	"image/color"
+	"math"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -10,6 +11,7 @@ import (
 )
 
 const (
+	
 	screenWidth     = 800
 	screenHeight    = 600
 	playerSpeed     = 4.0
@@ -22,11 +24,12 @@ const (
 	enemySpeed      = 2.0
 )
 
+
 var (
 	playerImage *ebiten.Image
 	bulletImage *ebiten.Image
-	playerX     = float64(screenWidth / 2)
-	playerY     = float64(screenHeight - playerHeight - 20)
+	playerX     = screenWidth / 2
+	playerY     = screenHeight - playerHeight - 20
 	bullets     []*bullet
 	enemies     []*enemy
 )
@@ -36,13 +39,18 @@ type bullet struct {
 	alive bool
 }
 
+	
 type enemy struct {
 	x, y  float64
 	alive bool
 }
-type game struct{}
 
-func (g*game) Update() error {
+type game struct{
+	enemies []*enemy
+	bullets []*bullet
+}
+
+func update(screen *ebiten.Image) error {
 	
 	handlePlayerMovement()
 
@@ -60,8 +68,8 @@ func (g*game) Update() error {
 
 	return nil
 }
-
-func (g*game) Draw(screen *ebiten.Image) {
+	
+func draw(screen *ebiten.Image) {
 	
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(playerX, playerY)
@@ -75,11 +83,8 @@ func (g*game) Draw(screen *ebiten.Image) {
 
 	
 	ebitenutil.DebugPrint(screen, "Press arrow keys to move, space to shoot")
-}
 
-func (g*game) Layout(outsideWidth, outsideHeight int) (int, int){
-	return screenWidth, screenHeight
-}
+	
 
 func main() {
 	
@@ -88,10 +93,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	bulletImage := ebiten.NewImage(bulletWidth, bulletHeight)
-	// ebiten.FilterDefault)
-	if err !=nil{
+	
+	bulletImage, err = ebiten.NewImage(bulletWidth, bulletHeight, ebiten.FilterDefault)
+	if err != nil {
 		log.Fatal(err)
 	}
 	bulletImage.Fill(color.RGBA{R: 255, G: 0, B: 0, A: 255}) 
@@ -99,6 +103,10 @@ func main() {
 	
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Side-Scrolling Shooter Game")
+	g := &game{
+		enemies: []*enemy{},
+		bullets: []*bullet{},
+	}
 
 	if err := ebiten.RunGame(&game{}); err != nil {
 		log.Fatal(err)
@@ -134,6 +142,7 @@ func handleShooting() {
 	}
 }
 
+	
 func updateBullets() {
 	
 	for _, b := range bullets {
@@ -143,6 +152,7 @@ func updateBullets() {
 	}
 }
 
+		
 func updateEnemies() {
 	
 	for _, e := range enemies {
@@ -152,8 +162,10 @@ func updateEnemies() {
 	}
 }
 
+		
 func handleCollisions() {
 	
+		
 	for _, b := range bullets {
 		if !b.alive {
 			continue
@@ -196,3 +208,4 @@ func drawEnemies(screen *ebiten.Image) {
 		}
 	}
 }
+
