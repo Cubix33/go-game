@@ -2,8 +2,7 @@ package main
 
 import (
 	"log"
-	"math"
-	"time"
+	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -26,8 +25,8 @@ const (
 var (
 	playerImage *ebiten.Image
 	bulletImage *ebiten.Image
-	playerX     = screenWidth / 2
-	playerY     = screenHeight - playerHeight - 20
+	playerX     = float64(screenWidth / 2)
+	playerY     = float64(screenHeight - playerHeight - 20)
 	bullets     []*bullet
 	enemies     []*enemy
 )
@@ -41,8 +40,9 @@ type enemy struct {
 	x, y  float64
 	alive bool
 }
+type game struct{}
 
-func update(screen *ebiten.Image) error {
+func (g*game) Update() error {
 	
 	handlePlayerMovement()
 
@@ -61,7 +61,7 @@ func update(screen *ebiten.Image) error {
 	return nil
 }
 
-func draw(screen *ebiten.Image) {
+func (g*game) Draw(screen *ebiten.Image) {
 	
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(playerX, playerY)
@@ -75,8 +75,11 @@ func draw(screen *ebiten.Image) {
 
 	
 	ebitenutil.DebugPrint(screen, "Press arrow keys to move, space to shoot")
+}
 
-	
+func (g*game) Layout(outsideWidth, outsideHeight int) (int, int){
+	return screenWidth, screenHeight
+}
 
 func main() {
 	
@@ -86,8 +89,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	bulletImage, err = ebiten.NewImage(bulletWidth, bulletHeight, ebiten.FilterDefault)
-	if err != nil {
+	bulletImage := ebiten.NewImage(bulletWidth, bulletHeight)
+	// ebiten.FilterDefault)
+	if err !=nil{
 		log.Fatal(err)
 	}
 	bulletImage.Fill(color.RGBA{R: 255, G: 0, B: 0, A: 255}) 
