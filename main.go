@@ -1,9 +1,8 @@
 package main
 
 import (
+	"image/color"
 	"log"
-	"math"
-	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -11,25 +10,23 @@ import (
 )
 
 const (
-	
 	screenWidth     = 800
 	screenHeight    = 600
 	playerSpeed     = 4.0
 	playerWidth     = 64
 	playerHeight    = 64
-	playerImagePath = "sprites/player.png"
+	playerImagePath = "sprites/ship.png"
 	bulletSpeed     = 8.0
 	bulletWidth     = 8
 	bulletHeight    = 8
 	enemySpeed      = 2.0
 )
 
-
 var (
 	playerImage *ebiten.Image
 	bulletImage *ebiten.Image
-	playerX     = screenWidth / 2
-	playerY     = screenHeight - playerHeight - 20
+	playerX     = float64(screenWidth / 2)
+	playerY     = float64(screenHeight - playerHeight - 20)
 	bullets     []*bullet
 	enemies     []*enemy
 )
@@ -39,74 +36,61 @@ type bullet struct {
 	alive bool
 }
 
-	
 type enemy struct {
 	x, y  float64
 	alive bool
 }
+type game struct{}
 
-type game struct{
-	enemies []*enemy
-	bullets []*bullet
-}
+func (g *game) Update() error {
 
-func update(screen *ebiten.Image) error {
-	
 	handlePlayerMovement()
 
-	
 	handleShooting()
 
-	
 	updateBullets()
 
-	
 	updateEnemies()
 
-	
 	handleCollisions()
 
 	return nil
 }
-	
-func draw(screen *ebiten.Image) {
-	
+
+func (g *game) Draw(screen *ebiten.Image) {
+
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(playerX, playerY)
 	screen.DrawImage(playerImage, op)
 
-	
 	drawBullets(screen)
 
-	
 	drawEnemies(screen)
 
-	
 	ebitenutil.DebugPrint(screen, "Press arrow keys to move, space to shoot")
+}
 
-	
+func (g *game) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return screenWidth, screenHeight
+}
 
 func main() {
-	
+
 	var err error
 	playerImage, _, err = ebitenutil.NewImageFromFile(playerImagePath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	
-	bulletImage, err = ebiten.NewImage(bulletWidth, bulletHeight, ebiten.FilterDefault)
+
+	bulletImage = ebiten.NewImage(bulletWidth, bulletHeight)
+	// ebiten.FilterDefault)
 	if err != nil {
 		log.Fatal(err)
 	}
-	bulletImage.Fill(color.RGBA{R: 255, G: 0, B: 0, A: 255}) 
+	bulletImage.Fill(color.RGBA{R: 255, G: 0, B: 0, A: 255})
 
-	
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Side-Scrolling Shooter Game")
-	g := &game{
-		enemies: []*enemy{},
-		bullets: []*bullet{},
-	}
 
 	if err := ebiten.RunGame(&game{}); err != nil {
 		log.Fatal(err)
@@ -114,7 +98,7 @@ func main() {
 }
 
 func handlePlayerMovement() {
-	
+
 	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
 		playerX -= playerSpeed
 	}
@@ -122,7 +106,6 @@ func handlePlayerMovement() {
 		playerX += playerSpeed
 	}
 
-	
 	if playerX < 0 {
 		playerX = 0
 	}
@@ -132,7 +115,7 @@ func handlePlayerMovement() {
 }
 
 func handleShooting() {
-	
+
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		bullets = append(bullets, &bullet{
 			x:     playerX + playerWidth/2 - bulletWidth/2,
@@ -142,9 +125,8 @@ func handleShooting() {
 	}
 }
 
-	
 func updateBullets() {
-	
+
 	for _, b := range bullets {
 		if b.alive {
 			b.y -= bulletSpeed
@@ -152,9 +134,8 @@ func updateBullets() {
 	}
 }
 
-		
 func updateEnemies() {
-	
+
 	for _, e := range enemies {
 		if e.alive {
 			e.y += enemySpeed
@@ -162,10 +143,8 @@ func updateEnemies() {
 	}
 }
 
-		
 func handleCollisions() {
-	
-		
+
 	for _, b := range bullets {
 		if !b.alive {
 			continue
@@ -177,7 +156,7 @@ func handleCollisions() {
 			if collision(b.x, b.y, bulletWidth, bulletHeight, e.x, e.y, playerWidth, playerHeight) {
 				b.alive = false
 				e.alive = false
-				
+
 			}
 		}
 	}
@@ -188,7 +167,7 @@ func collision(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
 }
 
 func drawBullets(screen *ebiten.Image) {
-	
+
 	for _, b := range bullets {
 		if b.alive {
 			op := &ebiten.DrawImageOptions{}
@@ -199,13 +178,12 @@ func drawBullets(screen *ebiten.Image) {
 }
 
 func drawEnemies(screen *ebiten.Image) {
-	
+
 	for _, e := range enemies {
 		if e.alive {
 			op := &ebiten.DrawImageOptions{}
 			op.GeoM.Translate(e.x, e.y)
-			screen.DrawImage(playerImage, op) 
+			screen.DrawImage(playerImage, op)
 		}
 	}
 }
-
