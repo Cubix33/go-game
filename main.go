@@ -15,7 +15,7 @@ const (
 	playerSpeed     = 4.0
 	playerWidth     = 64
 	playerHeight    = 64
-	playerImagePath = "sprites/ship.png"
+	playerImagePath = "sprites/ship1.png"
 	bulletSpeed     = 8.0
 	bulletWidth     = 8
 	bulletHeight    = 8
