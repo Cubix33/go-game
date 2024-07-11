@@ -1,7 +1,7 @@
 package main
 
 import (
-	"image/color"
+	
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -16,6 +16,7 @@ const (
 	playerWidth     = 64
 	playerHeight    = 64
 	playerImagePath = "sprites/ship1.png"
+	bulletImagePath = "sprites/bullet.png"
 	bulletSpeed     = 8.0
 	bulletWidth     = 8
 	bulletHeight    = 8
@@ -33,6 +34,7 @@ var (
 
 type bullet struct {
 	x, y  float64
+	frame int
 	alive bool
 }
 
@@ -82,13 +84,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	bulletImage = ebiten.NewImage(bulletWidth, bulletHeight)
-	// ebiten.FilterDefault)
-	if err != nil {
+	bulletImage, _,  err = ebitenutil.NewImageFromFile(bulletImagePath)
+	if err != nil{
 		log.Fatal(err)
 	}
-	bulletImage.Fill(color.RGBA{R: 255, G: 0, B: 0, A: 255})
-
+   
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Side-Scrolling Shooter Game")
 
@@ -120,6 +120,7 @@ func handleShooting() {
 		bullets = append(bullets, &bullet{
 			x:     playerX + playerWidth/2 - bulletWidth/2,
 			y:     playerY,
+			frame: 0,
 			alive: true,
 		})
 	}
