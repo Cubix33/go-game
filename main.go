@@ -3,6 +3,8 @@ package main
 import (
 	
 	"log"
+	"math/rand"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -17,15 +19,19 @@ const (
 	playerHeight    = 64
 	playerImagePath = "sprites/ship1.png"
 	bulletImagePath = "sprites/bullet.png"
+	enemyImagePath = "sprites/zombii.png"
 	bulletSpeed     = 8.0
 	bulletWidth     = 8
 	bulletHeight    = 8
 	enemySpeed      = 2.0
+	enemyWidth      = 64
+	enemyHeight     = 64
 )
 
 var (
 	playerImage *ebiten.Image
 	bulletImage *ebiten.Image
+	enemyImage *ebiten.Image
 	playerX     = float64(screenWidth / 2)
 	playerY     = float64(screenHeight - playerHeight - 20)
 	bullets     []*bullet
@@ -88,7 +94,14 @@ func main() {
 	if err != nil{
 		log.Fatal(err)
 	}
-   
+
+	enemyImage, _, err = ebitenutil.NewImageFromFile(enemyImagePath) 
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	initializeEnemies()
+
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Side-Scrolling Shooter Game")
 
@@ -96,6 +109,18 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+func initializeEnemies() {
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < 5; i++ { // Add 5 enemies for example
+		enemies = append(enemies, &enemy{
+			x:     float64(rand.Intn(screenWidth - enemyWidth)),
+			y:     float64(rand.Intn(screenHeight / 2)),
+			alive: true,
+		})
+	}
+}
+
 
 func handlePlayerMovement() {
 
@@ -154,7 +179,7 @@ func handleCollisions() {
 			if !e.alive {
 				continue
 			}
-			if collision(b.x, b.y, bulletWidth, bulletHeight, e.x, e.y, playerWidth, playerHeight) {
+			if collision(b.x, b.y, bulletWidth, bulletHeight, e.x, e.y, enemyWidth, enemyHeight) {
 				b.alive = false
 				e.alive = false
 
@@ -184,7 +209,7 @@ func drawEnemies(screen *ebiten.Image) {
 		if e.alive {
 			op := &ebiten.DrawImageOptions{}
 			op.GeoM.Translate(e.x, e.y)
-			screen.DrawImage(playerImage, op)
+			screen.DrawImage(enemyImage, op)
 		}
 	}
 }
