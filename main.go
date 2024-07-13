@@ -1,7 +1,6 @@
 package main
 
 import (
-	
 	"log"
 	"math/rand"
 	"time"
@@ -18,20 +17,21 @@ const (
 	playerWidth     = 64
 	playerHeight    = 64
 	playerImagePath = "sprites/ship1.png"
-	bulletImagePath = "sprites/bullet.png"
-	enemyImagePath = "sprites/zombii.png"
+	bulletImagePath = "sprites/bill1.png"
+	enemyImagePath  = "sprites/zombii.png"
 	bulletSpeed     = 8.0
 	bulletWidth     = 8
-	bulletHeight    = 8
+	bulletHeight    = 7
 	enemySpeed      = 2.0
 	enemyWidth      = 64
 	enemyHeight     = 64
+	maxEnemies      = 7
 )
 
 var (
 	playerImage *ebiten.Image
 	bulletImage *ebiten.Image
-	enemyImage *ebiten.Image
+	enemyImage  *ebiten.Image
 	playerX     = float64(screenWidth / 2)
 	playerY     = float64(screenHeight - playerHeight - 20)
 	bullets     []*bullet
@@ -48,31 +48,24 @@ type enemy struct {
 	x, y  float64
 	alive bool
 }
+
 type game struct{}
 
 func (g *game) Update() error {
-
 	handlePlayerMovement()
-
 	handleShooting()
-
 	updateBullets()
-
 	updateEnemies()
-
 	handleCollisions()
-
 	return nil
 }
 
 func (g *game) Draw(screen *ebiten.Image) {
-
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(playerX, playerY)
 	screen.DrawImage(playerImage, op)
 
 	drawBullets(screen)
-
 	drawEnemies(screen)
 
 	ebitenutil.DebugPrint(screen, "Press arrow keys to move, space to shoot")
@@ -83,19 +76,18 @@ func (g *game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func main() {
-
 	var err error
 	playerImage, _, err = ebitenutil.NewImageFromFile(playerImagePath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	bulletImage, _,  err = ebitenutil.NewImageFromFile(bulletImagePath)
-	if err != nil{
+	bulletImage, _, err = ebitenutil.NewImageFromFile(bulletImagePath)
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	enemyImage, _, err = ebitenutil.NewImageFromFile(enemyImagePath) 
+	enemyImage, _, err = ebitenutil.NewImageFromFile(enemyImagePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -105,6 +97,8 @@ func main() {
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Side-Scrolling Shooter Game")
 
+	go spawnEnemies()
+
 	if err := ebiten.RunGame(&game{}); err != nil {
 		log.Fatal(err)
 	}
@@ -112,18 +106,44 @@ func main() {
 
 func initializeEnemies() {
 	rand.Seed(time.Now().UnixNano())
-	for i := 0; i < 5; i++ { // Add 5 enemies for example
+	for i := 0; i < maxEnemies; i++ {
+		x := float64(rand.Intn(screenWidth - enemyWidth))
+		y := float64(rand.Intn(screenHeight/2 - enemyHeight))
 		enemies = append(enemies, &enemy{
-			x:     float64(rand.Intn(screenWidth - enemyWidth)),
-			y:     float64(rand.Intn(screenHeight / 2)),
+			x:     x,
+			y:     y,
 			alive: true,
 		})
 	}
 }
 
+func spawnEnemies() {
+	rand.Seed(time.Now().UnixNano())
+	for {
+		time.Sleep(time.Second)
+		if countAliveEnemies() < maxEnemies { // Highlighted: Check if we can spawn more enemies
+			x := float64(rand.Intn(screenWidth - enemyWidth))
+			y := -float64(enemyHeight) // Highlighted: Ensure enemies spawn off the top of the screen
+			enemies = append(enemies, &enemy{
+				x:     x,
+				y:     y,
+				alive: true,
+			})
+		}
+	}
+}
+
+func countAliveEnemies() int { // Highlighted: New function to count alive enemies
+	count := 0
+	for _, e := range enemies {
+		if e.alive {
+			count++
+		}
+	}
+	return count
+}
 
 func handlePlayerMovement() {
-
 	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
 		playerX -= playerSpeed
 	}
@@ -140,11 +160,13 @@ func handlePlayerMovement() {
 }
 
 func handleShooting() {
-
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		bulletX := playerX + (playerWidth / 2) - (bulletWidth + 0.5 / 2)
+		bulletY := playerY - bulletHeight
+		
 		bullets = append(bullets, &bullet{
-			x:     playerX + playerWidth/2 - bulletWidth/2,
-			y:     playerY,
+			x:     bulletX,
+			y:     bulletY,
 			frame: 0,
 			alive: true,
 		})
@@ -152,37 +174,44 @@ func handleShooting() {
 }
 
 func updateBullets() {
-
-	for _, b := range bullets {
+	for i := len(bullets) - 1; i >= 0; i-- {
+		b := bullets[i]
 		if b.alive {
 			b.y -= bulletSpeed
+			if b.y < -bulletHeight {
+				bullets = append(bullets[:i], bullets[i+1:]...)
+			}
 		}
 	}
 }
 
 func updateEnemies() {
-
-	for _, e := range enemies {
+	for i := len(enemies) - 1; i >= 0; i-- {
+		e := enemies[i]
 		if e.alive {
 			e.y += enemySpeed
+			if e.y > screenHeight {
+				enemies = append(enemies[:i], enemies[i+1:]...)
+			}
 		}
 	}
 }
 
 func handleCollisions() {
-
-	for _, b := range bullets {
+	for i := len(bullets) - 1; i >= 0; i-- {
+		b := bullets[i]
 		if !b.alive {
 			continue
 		}
-		for _, e := range enemies {
+		for j := len(enemies) - 1; j >= 0; j-- {
+			e := enemies[j]
 			if !e.alive {
 				continue
 			}
 			if collision(b.x, b.y, bulletWidth, bulletHeight, e.x, e.y, enemyWidth, enemyHeight) {
-				b.alive = false
-				e.alive = false
-
+				bullets = append(bullets[:i], bullets[i+1:]...)
+				enemies = append(enemies[:j], enemies[j+1:]...)
+				break
 			}
 		}
 	}
@@ -193,7 +222,6 @@ func collision(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
 }
 
 func drawBullets(screen *ebiten.Image) {
-
 	for _, b := range bullets {
 		if b.alive {
 			op := &ebiten.DrawImageOptions{}
@@ -204,7 +232,6 @@ func drawBullets(screen *ebiten.Image) {
 }
 
 func drawEnemies(screen *ebiten.Image) {
-
 	for _, e := range enemies {
 		if e.alive {
 			op := &ebiten.DrawImageOptions{}
@@ -213,3 +240,4 @@ func drawEnemies(screen *ebiten.Image) {
 		}
 	}
 }
+
