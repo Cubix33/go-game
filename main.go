@@ -121,9 +121,9 @@ func spawnEnemies() {
 	rand.Seed(time.Now().UnixNano())
 	for {
 		time.Sleep(time.Second)
-		if countAliveEnemies() < maxEnemies { // Highlighted: Check if we can spawn more enemies
+		if countAliveEnemies() < maxEnemies { 
 			x := float64(rand.Intn(screenWidth - enemyWidth))
-			y := -float64(enemyHeight) // Highlighted: Ensure enemies spawn off the top of the screen
+			y := -float64(enemyHeight) 
 			enemies = append(enemies, &enemy{
 				x:     x,
 				y:     y,
@@ -133,7 +133,7 @@ func spawnEnemies() {
 	}
 }
 
-func countAliveEnemies() int { // Highlighted: New function to count alive enemies
+func countAliveEnemies() int { 
 	count := 0
 	for _, e := range enemies {
 		if e.alive {
