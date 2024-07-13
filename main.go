@@ -4,6 +4,8 @@ import (
 	"log"
 	"math/rand"
 	"time"
+	"os"
+	"fmt"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -19,6 +21,7 @@ const (
 	playerImagePath = "sprites/ship1.png"
 	bulletImagePath = "sprites/bill1.png"
 	enemyImagePath  = "sprites/zombii.png"
+	backgroundImagePath = "sprites/bg.png"
 	bulletSpeed     = 8.0
 	bulletWidth     = 8
 	bulletHeight    = 7
@@ -32,10 +35,13 @@ var (
 	playerImage *ebiten.Image
 	bulletImage *ebiten.Image
 	enemyImage  *ebiten.Image
+	backgroundImage *ebiten.Image
 	playerX     = float64(screenWidth / 2)
 	playerY     = float64(screenHeight - playerHeight - 20)
 	bullets     []*bullet
 	enemies     []*enemy
+	gameOver    bool
+	score       int 
 )
 
 type bullet struct {
@@ -52,6 +58,14 @@ type enemy struct {
 type game struct{}
 
 func (g *game) Update() error {
+	if gameOver {
+		if inpututil.IsKeyJustPressed(ebiten.KeyR) {
+			resetGame()
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+			os.Exit(0)
+		}
+		return nil
+	}
 	handlePlayerMovement()
 	handleShooting()
 	updateBullets()
@@ -62,14 +76,24 @@ func (g *game) Update() error {
 
 func (g *game) Draw(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
+	screen.DrawImage(backgroundImage, op)
 	op.GeoM.Translate(playerX, playerY)
 	screen.DrawImage(playerImage, op)
 
 	drawBullets(screen)
 	drawEnemies(screen)
+	scoreText := fmt.Sprintf("Score: %d", score)
+    ebitenutil.DebugPrintAt(screen, scoreText, 10, 10)
 
-	ebitenutil.DebugPrint(screen, "Press arrow keys to move, space to shoot")
+    if gameOver {
+        gameOverText := fmt.Sprintf("Game Over! Total Score: %d\nPress 'R' to restart or 'Esc' to exit", score)
+        ebitenutil.DebugPrintAt(screen, gameOverText, screenWidth/2-100, screenHeight/2)
+    } else {
+        ebitenutil.DebugPrint(screen, "Press arrow keys to move, space to shoot")
+    }
 }
+	
+	
 
 func (g *game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
@@ -88,6 +112,11 @@ func main() {
 	}
 
 	enemyImage, _, err = ebitenutil.NewImageFromFile(enemyImagePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	backgroundImage, _, err = ebitenutil.NewImageFromFile(backgroundImagePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -190,8 +219,8 @@ func updateEnemies() {
 		e := enemies[i]
 		if e.alive {
 			e.y += enemySpeed
-			if e.y > screenHeight {
-				enemies = append(enemies[:i], enemies[i+1:]...)
+			if e.y + enemyHeight >= screenHeight {
+				gameOver = true
 			}
 		}
 	}
@@ -211,10 +240,31 @@ func handleCollisions() {
 			if collision(b.x, b.y, bulletWidth, bulletHeight, e.x, e.y, enemyWidth, enemyHeight) {
 				bullets = append(bullets[:i], bullets[i+1:]...)
 				enemies = append(enemies[:j], enemies[j+1:]...)
+				score +=1
 				break
 			}
 		}
 	}
+}
+
+//func checkGameOver() {
+//	for _, e := range enemies {
+//		if e.alive && e.y > screenHeight {
+//			gameOver = true
+//			break
+//		}
+//	}
+//}
+
+func resetGame() {
+	playerX = float64(screenWidth / 2)
+	playerY = float64(screenHeight - playerHeight - 20)
+	bullets = []*bullet{}
+	enemies = []*enemy{}
+	score   = 0
+	gameOver = false
+	initializeEnemies()
+	go spawnEnemies()
 }
 
 func collision(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
