@@ -6,6 +6,7 @@ import (
 	"time"
 	"os"
 	"fmt"
+	//"syscall/js"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -99,7 +100,13 @@ func (g *game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
 }
 
-func main() {
+//func main() {
+//	c := make(chan struct{}, 0)
+//	go runGame()
+//	<-c
+//}
+
+func main(){
 	var err error
 	playerImage, _, err = ebitenutil.NewImageFromFile(playerImagePath)
 	if err != nil {
