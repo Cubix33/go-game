@@ -1,0 +1,4 @@
+[build]
+  command = "GOOS=js GOARCH=wasm go build -o web/main.wasm main.go"
+  publish = "web"
+
