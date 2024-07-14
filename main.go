@@ -6,7 +6,7 @@ import (
 	"time"
 	"os"
 	"fmt"
-	//"syscall/js"
+	"syscall/js"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -47,7 +47,7 @@ var (
 
 type bullet struct {
 	x, y  float64
-	frame int
+	//frame int
 	alive bool
 }
 
@@ -100,13 +100,15 @@ func (g *game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
 }
 
-//func main() {
-//	c := make(chan struct{}, 0)
-//	go runGame()
-//	<-c
-//}
+func main() {
+	done := make(chan struct{})
+	js.Global().Set("runGame", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		go runGame()
+		return nil}))
+	<-done
+}
 
-func main(){
+func runGame(){
 	var err error
 	playerImage, _, err = ebitenutil.NewImageFromFile(playerImagePath)
 	if err != nil {
@@ -203,7 +205,7 @@ func handleShooting() {
 		bullets = append(bullets, &bullet{
 			x:     bulletX,
 			y:     bulletY,
-			frame: 0,
+			//frame: 0,
 			alive: true,
 		})
 	}
