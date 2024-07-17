@@ -1,0 +1,27 @@
+image: golang:1.18
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  script:
+    - go build -o my_game main.go
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploying to GitLab Pages..."
+    - mkdir public
+    - cp -r web/* public/
+    - mv my_game public/
+    - mv wasm_exec.js public/
+    - cd public
+    - echo '/*    /index.html   200' > _redirects  # For SPA routing
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

@@ -11,6 +11,7 @@ require (
 require (
 	github.com/ebitengine/gomobile v0.0.0-20240518074828-e86332849895 // indirect
 	github.com/ebitengine/hideconsole v1.0.0 // indirect
+	github.com/ebitengine/oto/v3 v3.2.0 // indirect
 	github.com/ebitengine/purego v0.7.0 // indirect
 	github.com/faiface/glhf v0.0.0-20181018222622-82a6317ac380 // indirect
 	github.com/faiface/mainthread v0.0.0-20171120011319-8b78f0a41ae3 // indirect
