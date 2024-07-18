@@ -1,149 +1,154 @@
 package main
 
 import (
-	"image/color"
 	"log"
 	"math/rand"
-	"strconv"
 	"time"
+	//"os"
+	"image/color"
+	"strconv"
+	//"fmt"
+	//"syscall/js"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/audio"
+        "github.com/hajimehoshi/ebiten/v2/audio/wav"
+
 )
 
 const (
-	screenWidth         = 800
-	screenHeight        = 600
-	playerSpeed         = 4.0
-	playerWidth         = 64
-	playerHeight        = 64
-	bulletSpeed         = 8.0
-	bulletWidth         = 8
-	bulletHeight        = 8
-	startButtonWidth    = 200
-	startButtonHeight   = 50
-	playerImagePath     = "sprites/ship1.png"
-	bulletImagePath     = "sprites/bill1.png"
-	obstacleImagePath   = "sprites/obstacle.png"
-	obstacleWidth       = 64
-	obstacleHeight      = 64
-	enemyImagePath      = "sprites/zombii.png"
+	screenWidth     = 800
+	screenHeight    = 600
+	playerSpeed     = 4.0
+	playerWidth     = 64
+	playerHeight    = 64
+	playerImagePath = "sprites/ship1.png"
+	bulletImagePath = "sprites/bill1.png"
+	enemyImagePath  = "sprites/zombii.png"
 	backgroundImagePath = "sprites/bg.png"
-	bulletSoundPath     = "sounds/bullet.wav"
-	gameOverSoundPath   = "sounds/game_over.wav"
+	bulletSpeed     = 8.0
+	bulletWidth     = 8
+	bulletHeight    = 7
+	enemySpeed      = 2.0
+	enemyWidth      = 64
+	enemyHeight     = 64
+	maxEnemies      = 7
+	bulletSoundPath = "sounds/bullet.wav"
+	gameOverSoundPath = "sounds/game_over.wav"
+	spaceshipSoundPath = "sounds/spaceship.wav"
+	startButtonWidth      = 200
+	startButtonHeight     = 50
 )
 
 var (
-	playerImage     *ebiten.Image
-	bulletImage     *ebiten.Image
-	enemyImage      *ebiten.Image
+	playerImage *ebiten.Image
+	bulletImage *ebiten.Image
+	enemyImage  *ebiten.Image
 	backgroundImage *ebiten.Image
-	obstacleImage   *ebiten.Image
-	playerX         = float64(screenWidth / 2)
-	playerY         = float64(screenHeight - playerHeight - 20)
-	bullets         []*bullet
-	obstacles       []*obstacle
-	enemies         []*enemy
-	score           int
-	gameOver        bool
-	gameStarted     bool
+	playerX     = float64(screenWidth / 2)
+	playerY     = float64(screenHeight - playerHeight - 20)
+	bullets     []*bullet
+	enemies     []*enemy
+	gameOver    bool
+	score       int 
+	gameOverSoundPlayed bool
 	startButtonX    = float64((screenWidth - startButtonWidth) / 2)
-	startButtonY    = float64((screenHeight - startButtonHeight) / 2)
-	audioContext    *audio.Context
-	bulletSound     *audio.Player
-	gameOverSound   *audio.Player
+        startButtonY    = float64((screenHeight - startButtonHeight) / 2)
+	//buttonX           = float64((screenWidth - buttonWidth) / 2)
+	//restartButtonY    = float64((screenHeight - buttonHeight) / 2)
+	//exitButtonY       = restartButtonY + buttonHeight + 10
+
+	audioContext *audio.Context
+	bulletSound *audio.Player
+	gameOverSound *audio.Player
+	spaceshipSound *audio.Player
+	spaceshipSoundPlaying bool
+	gameStarted bool
 )
 
 type bullet struct {
 	x, y  float64
+	frame int
 	alive bool
 }
 
-type obstacle struct {
-	x, y   float64
-	deadly bool
-	rotation float64
-}
-
 type enemy struct {
-    x, y    float64
-    alive   bool
-    deadly  bool
+	x, y  float64
+	alive bool
 }
-
-
 
 type game struct{}
 
 func (g *game) Update() error {
-	if !gameStarted {
-		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-			mouseX, mouseY := ebiten.CursorPosition()
-			if float64(mouseX) >= startButtonX && float64(mouseX) <= startButtonX+startButtonWidth &&
-				float64(mouseY) >= startButtonY && float64(mouseY) <= startButtonY+startButtonHeight {
-				gameStarted = true
-				resetGame()
-			}
-		}
-		return nil
-	}
+	        if !gameStarted {
+                if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+                        mouseX, mouseY := ebiten.CursorPosition()
+                        if float64(mouseX) >= startButtonX && float64(mouseX) <= startButtonX+startButtonWidth &&
+                                float64(mouseY) >= startButtonY && float64(mouseY) <= startButtonY+startButtonHeight {
+                                gameStarted = true
+                                resetGame()
+                        }
+                }
+                return nil
+        }
 
-	if gameOver {
-		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-			mouseX, mouseY := ebiten.CursorPosition()
-			if float64(mouseX) >= startButtonX && float64(mouseX) <= startButtonX+startButtonWidth &&
-				float64(mouseY) >= startButtonY && float64(mouseY) <= startButtonY+startButtonHeight {
-				resetGame()
-			}
-		}
-		return nil
-	}
+        if gameOver {
+                if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+                        mouseX, mouseY := ebiten.CursorPosition()
+                        if float64(mouseX) >= startButtonX && float64(mouseX) <= startButtonX+startButtonWidth &&
+                                float64(mouseY) >= startButtonY && float64(mouseY) <= startButtonY+startButtonHeight {
+                                resetGame()
+                        }
+                }
+                return nil
+        }
 
 	handlePlayerMovement()
 	handleShooting()
 	updateBullets()
-	updateObstacles()
 	updateEnemies()
 	handleCollisions()
-
 	return nil
 }
 
 func (g *game) Draw(screen *ebiten.Image) {
-	if !gameStarted {
-		drawStartButton(screen)
-		return
-	}
+	        if !gameStarted {
+                drawStartButton(screen)
+                return
+        }
 
-	if gameOver {
-		drawGameOverScreen(screen)
-		return
-	}
+        if gameOver {
+                drawGameOverScreen(screen)
+                return
+        }
 
 	op := &ebiten.DrawImageOptions{}
 	screen.DrawImage(backgroundImage, op)
-
-	op.GeoM.Reset()
 	op.GeoM.Translate(playerX, playerY)
 	screen.DrawImage(playerImage, op)
 
 	drawBullets(screen)
-	drawObstacles(screen)
 	drawEnemies(screen)
-
 	ebitenutil.DebugPrint(screen, "Score: "+strconv.Itoa(score))
+        
 }
+	
+	
 
 func (g *game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
 }
 
-func main() {
-	var err error
+//func main() {
+//	c := make(chan struct{}, 0)
+//	go runGame()
+//	<-c
+//}
 
+func main(){
+	var err error
 	playerImage, _, err = ebitenutil.NewImageFromFile(playerImagePath)
 	if err != nil {
 		log.Fatal(err)
@@ -164,28 +169,29 @@ func main() {
 		log.Fatal(err)
 	}
 
-	obstacleImage, _, err = ebitenutil.NewImageFromFile(obstacleImagePath)
+	audioContext = audio.NewContext(44100)
+
+        bulletSound, err = loadSound(audioContext, bulletSoundPath)
         if err != nil {
                 log.Fatal(err)
         }
 
-	
-	audioContext = audio.NewContext(44100)
+        gameOverSound, err = loadSound(audioContext, gameOverSoundPath)
+        if err != nil {
+                log.Fatal(err)
+        }
 
-	bulletSound, err = loadSound(audioContext, bulletSoundPath)
-	if err != nil {
-		log.Fatal(err)
-	}
+	 spaceshipSound, err = loadSound(audioContext, spaceshipSoundPath)
+        if err != nil {
+                log.Fatal(err)
+        }
 
-	gameOverSound, err = loadSound(audioContext, gameOverSoundPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	rand.Seed(time.Now().UnixNano())
+	initializeEnemies()
+	// rand.Seed(time.Now().UnixNano())
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Side-Scrolling Shooter Game")
 
+	go spawnEnemies()
 
 	if err := ebiten.RunGame(&game{}); err != nil {
 		log.Fatal(err)
@@ -193,232 +199,186 @@ func main() {
 }
 
 func loadSound(context *audio.Context, path string) (*audio.Player, error) {
-	f, err := ebitenutil.OpenFile(path)
-	if err != nil {
-		return nil, err
-	}
-	d, err := wav.Decode(context, f)
-	if err != nil {
-		return nil, err
-	}
+        f, err := ebitenutil.OpenFile(path)
+        if err != nil {
+                return nil, err
+        }
+        d, err := wav.Decode(context, f)
+        if err != nil {
+                return nil, err
+        }
 
-	p, err := context.NewPlayer(d)
-	if err != nil {
-		return nil, err
-	}
+        p, err := context.NewPlayer(d)
+        if err != nil {
+                return nil, err
+        }
 
-	return p, nil
+        return p, nil
+}
+
+func initializeEnemies() {
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < maxEnemies; i++ {
+		x := float64(rand.Intn(screenWidth - enemyWidth))
+		y := float64(rand.Intn(screenHeight/2 - enemyHeight))
+		enemies = append(enemies, &enemy{
+			x:     x,
+			y:     y,
+			alive: true,
+		})
+	}
+}
+
+func spawnEnemies() {
+	rand.Seed(time.Now().UnixNano())
+	for {
+		time.Sleep(time.Second)
+		if countAliveEnemies() < maxEnemies { 
+			x := float64(rand.Intn(screenWidth - enemyWidth))
+			y := -float64(enemyHeight) 
+			enemies = append(enemies, &enemy{
+				x:     x,
+				y:     y,
+				alive: true,
+			})
+		}
+	}
+}
+
+func countAliveEnemies() int { 
+	count := 0
+	for _, e := range enemies {
+		if e.alive {
+			count++
+		}
+	}
+	return count
 }
 
 func handlePlayerMovement() {
+	moving := false
 	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
 		playerX -= playerSpeed
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
 		playerX += playerSpeed
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyArrowUp) {
-		playerY -= playerSpeed
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyArrowDown) {
-		playerY += playerSpeed
-	}
+
 	if playerX < 0 {
 		playerX = 0
 	}
 	if playerX > screenWidth-playerWidth {
 		playerX = screenWidth - playerWidth
 	}
-	if playerY < 0 {
-		playerY = 0
-	}
-	if playerY > screenHeight-playerHeight {
-		playerY = screenHeight - playerHeight
-	}
+
+	if moving {
+                if !spaceshipSoundPlaying {
+                        spaceshipSound.Rewind()
+                        spaceshipSound.Play()
+                        spaceshipSoundPlaying = true
+                }
+        } else {
+                if spaceshipSoundPlaying {
+                        spaceshipSound.Pause()
+                        spaceshipSoundPlaying = false
+                }
+        }
 }
 
 func handleShooting() {
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		log.Println("Shooting bullet")
 		bulletSound.Rewind()
 		bulletSound.Play()
-
+		bulletX := playerX + (playerWidth / 2) - (bulletWidth + 0.5 / 2)
+		bulletY := playerY - bulletHeight
+		
 		bullets = append(bullets, &bullet{
-			x:     playerX + (playerWidth)/2 - (bulletWidth+ 5)/2,
-			y:     playerY - bulletHeight,
+			x:     bulletX,
+			y:     bulletY,
+			frame: 0,
 			alive: true,
 		})
-		log.Println("Bullet added at position:", playerX+playerWidth/2-bulletWidth/2, playerY)
 	}
 }
 
 func updateBullets() {
-	for _, b := range bullets {
+	for i := len(bullets) - 1; i >= 0; i-- {
+		b := bullets[i]
 		if b.alive {
 			b.y -= bulletSpeed
-			if b.y < 0 {
-				b.alive = false
+			if b.y < -bulletHeight {
+				bullets = append(bullets[:i], bullets[i+1:]...)
 			}
 		}
 	}
-
-	newBullets := []*bullet{}
-	for _, b := range bullets {
-		if b.alive {
-			newBullets = append(newBullets, b)
-		}
-	}
-	bullets = newBullets
 }
 
 func updateEnemies() {
-    // Spawn enemies at random positions at the top
-    if rand.Intn(120) == 0 {
-	    numEnemies := 5 // Number of enemies to spawn at once
-	    for i := 0; i < numEnemies; i++ {
-		    enemyX := float64(rand.Intn(screenWidth - obstacleWidth))
-		    enemyY := 0.0
-		    spawnAllowed := true
-            for _, e := range enemies {
-                if e.alive && e.x == enemyX {
-                    spawnAllowed = false
-                    break
-                }
-            }
-	         if spawnAllowed {
-                enemies = append(enemies, &enemy{
-                    x:      enemyX,
-                    y:      enemyY,
-                    alive:  true,
-                    deadly: true,
-                })
-            }
-        }
-    }
-
-
-
-
-
-    for _, e := range enemies {
-        if e.alive {
-            e.y += 2.0 // Adjust the enemy speed as needed
-            if e.y > screenHeight {
-                e.alive = false
-            }
-        }
-    }
-
-    // Remove dead enemies
-    newEnemies := []*enemy{}
-    for _, e := range enemies {
-        if e.alive {
-            newEnemies = append(newEnemies, e)
-        }
-    }
-    enemies = newEnemies
-}
-
-func updateObstacles() {
-    if rand.Intn(120) == 0 {
-        isDeadly := rand.Intn(2) == 0
-        obstacleY := float64(rand.Intn(screenHeight - obstacleHeight))
-        for obstacleY > playerY-obstacleHeight && obstacleY < playerY+playerHeight {
-            obstacleY = float64(rand.Intn(screenHeight - obstacleHeight))
-        }
-        obstacles = append(obstacles, &obstacle{
-            x:        float64(screenWidth),
-            y:        obstacleY,
-            deadly:   isDeadly,
-            rotation: 0.0,
-        })
-    }
-
-    for _, o := range obstacles {
-        o.x -= 2.0
-        if !o.deadly {
-            o.rotation += 0.05 // Adjust rotation speed as needed
-            if o.rotation >= 2*3.14159 {
-                o.rotation = 0
-            }
-        }
-        if o.x < -obstacleWidth {
-            o.x = screenWidth
-            obstacleY := float64(rand.Intn(screenHeight - obstacleHeight))
-            for obstacleY > playerY-obstacleHeight && obstacleY < playerY+playerHeight {
-                obstacleY = float64(rand.Intn(screenHeight - obstacleHeight))
-            }
-            o.y = obstacleY
-            o.deadly = rand.Intn(2) == 0
-            o.rotation = 0.0
-        }
-    }
-}
-
-  
-    
-  
-
-func handleCollisions() {
-	for _, b := range bullets {
-		if !b.alive {
-			continue
-		}
-		for _, o := range obstacles {
-			if collision(b.x, b.y, bulletWidth, bulletHeight, o.x, o.y, obstacleWidth, obstacleHeight) {
-				b.alive = false
-				if o.deadly {
-					o.deadly = false
-					score++
-				}
-			}
-		}
-
-		for _, e := range enemies {
-            if collision(b.x, b.y, bulletWidth, bulletHeight, e.x, e.y, obstacleWidth, obstacleHeight) {
-                b.alive = false
-                e.alive = false
-                score++
-            }
-        }
-}
-
-	for _, o := range obstacles {
-		if collision(playerX, playerY, playerWidth, playerHeight, o.x, o.y, obstacleWidth, obstacleHeight) {
-			if o.deadly {
-				gameOverSound.Rewind()
-				gameOverSound.Play()
+	for i := len(enemies) - 1; i >= 0; i-- {
+		e := enemies[i]
+		if e.alive {
+			e.y += enemySpeed
+			if e.y + enemyHeight >= screenHeight {
 				gameOver = true
-			} else {
-				playerY = o.y - playerHeight
 			}
 		}
 	}
-
-	for _, e := range enemies {
-        if collision(playerX, playerY, playerWidth, playerHeight, e.x, e.y, obstacleWidth, obstacleHeight) {
-            if e.deadly {
+	    if gameOver && !gameOverSoundPlayed {
                 gameOverSound.Rewind()
                 gameOverSound.Play()
-                gameOver = true
-            }
+                gameOverSoundPlayed = true
         }
-    }
+}
+
+func handleCollisions() {
+	for i := len(bullets) - 1; i >= 0; i-- {
+		b := bullets[i]
+		if !b.alive {
+			continue
+		}
+		for j := len(enemies) - 1; j >= 0; j-- {
+			e := enemies[j]
+			if !e.alive {
+				continue
+			}
+			if collision(b.x, b.y, bulletWidth, bulletHeight, e.x, e.y, enemyWidth, enemyHeight) {
+				bullets = append(bullets[:i], bullets[i+1:]...)
+				enemies = append(enemies[:j], enemies[j+1:]...)
+				score +=1
+				break
+			}
+		}
+	}
+}
+
+//func checkGameOver() {
+//	for _, e := range enemies {
+//		if e.alive && e.y > screenHeight {
+//			gameOver = true
+//			break
+//		}
+//	}
+//}
+
+func resetGame() {
+	playerX = float64(screenWidth / 2)
+	playerY = float64(screenHeight - playerHeight - 20)
+	bullets = []*bullet{}
+	enemies = []*enemy{}
+	score   = 0
+	gameOver = false
+	gameOverSoundPlayed = false
+	initializeEnemies()
+	go spawnEnemies()
+
+	 if spaceshipSoundPlaying {
+                       spaceshipSound.Pause()
+                       spaceshipSoundPlaying = false
+               }
 }
 
 func collision(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
 	return x1 < x2+w2 && x1+w1 > x2 && y1 < y2+h2 && y1+h1 > y2
-}
-
-func drawStartButton(screen *ebiten.Image) {
-	ebitenutil.DrawRect(screen, startButtonX, startButtonY, startButtonWidth, startButtonHeight, color.White)
-	ebitenutil.DebugPrintAt(screen, "START GAME", int(startButtonX)+10, int(startButtonY)+10)
-}
-
-func drawGameOverScreen(screen *ebiten.Image) {
-	ebitenutil.DrawRect(screen, startButtonX, startButtonY, startButtonWidth, startButtonHeight, color.RGBA{255, 0, 0, 255})
-	ebitenutil.DebugPrintAt(screen, "GAME OVER", int(startButtonX)+10, int(startButtonY)+10)
-	ebitenutil.DebugPrintAt(screen, "SCORE: "+strconv.Itoa(score), int(startButtonX)+10, int(startButtonY)+30)
 }
 
 func drawBullets(screen *ebiten.Image) {
@@ -431,39 +391,24 @@ func drawBullets(screen *ebiten.Image) {
 	}
 }
 
-func drawObstacles(screen *ebiten.Image) {
-	for _, o := range obstacles {
-		op := &ebiten.DrawImageOptions{}
-		if o.deadly {
-                        op.GeoM.Translate(o.x, o.y)
-                        screen.DrawImage(enemyImage, op)
-                } else {
-                        op.GeoM.Translate(-float64(obstacleWidth)/2, -float64(obstacleHeight)/2)
-                        op.GeoM.Rotate(o.rotation)
-                        op.GeoM.Translate(o.x+float64(obstacleWidth)/2, o.y+float64(obstacleHeight)/2)
-                        screen.DrawImage(obstacleImage, op)
-                }
-        }
-}
-
 func drawEnemies(screen *ebiten.Image) {
-    for _, e := range enemies {
-        if e.alive {
-            op := &ebiten.DrawImageOptions{}
-            op.GeoM.Translate(e.x, e.y)
-            screen.DrawImage(enemyImage, op)
-        }
-    }
+	for _, e := range enemies {
+		if e.alive {
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(e.x, e.y)
+			screen.DrawImage(enemyImage, op)
+		}
+	}
 }
-                
 
-func resetGame() {
-	playerX = float64(screenWidth / 2)
-	playerY = float64(screenHeight - playerHeight - 20)
-	bullets = []*bullet{}
-	obstacles = []*obstacle{}
-	enemies   = []*enemy{}
-	score = 0
-	gameOver = false
+func drawStartButton(screen *ebiten.Image) {
+        ebitenutil.DrawRect(screen, startButtonX, startButtonY, startButtonWidth, startButtonHeight, color.White)
+        ebitenutil.DebugPrintAt(screen, "START GAME", int(startButtonX)+10, int(startButtonY)+10)
+}
+
+func drawGameOverScreen(screen *ebiten.Image) {
+        ebitenutil.DrawRect(screen, startButtonX, startButtonY, startButtonWidth, startButtonHeight, color.RGBA{255, 0, 0, 255})
+        ebitenutil.DebugPrintAt(screen, "GAME OVER", int(startButtonX)+10, int(startButtonY)+10)
+        ebitenutil.DebugPrintAt(screen, "SCORE: "+strconv.Itoa(score), int(startButtonX)+10, int(startButtonY)+30)
 }
 
