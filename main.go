@@ -40,6 +40,7 @@ var (
 	bulletImage     *ebiten.Image
 	enemyImage      *ebiten.Image
 	backgroundImage *ebiten.Image
+	targetImage     *ebiten.Image
 	playerX         = float64(screenWidth / 2)
 	playerY         = float64(screenHeight - playerHeight - 20)
 	bullets         []*bullet
@@ -63,6 +64,7 @@ type obstacle struct {
 	x, y   float64
 	deadly bool
 }
+
 
 type game struct{}
 
@@ -150,6 +152,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	
 	audioContext = audio.NewContext(44100)
 
 	bulletSound, err = loadSound(audioContext, bulletSoundPath)
@@ -165,6 +168,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Side-Scrolling Shooter Game")
+
 
 	if err := ebiten.RunGame(&game{}); err != nil {
 		log.Fatal(err)
@@ -223,8 +227,8 @@ func handleShooting() {
 		bulletSound.Play()
 
 		bullets = append(bullets, &bullet{
-			x:     playerX + playerWidth/2 - bulletWidth/2,
-			y:     playerY,
+			x:     playerX + (playerWidth)/2 - (bulletWidth+ 5)/2,
+			y:     playerY - bulletHeight,
 			alive: true,
 		})
 		log.Println("Bullet added at position:", playerX+playerWidth/2-bulletWidth/2, playerY)
