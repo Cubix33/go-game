@@ -27,6 +27,7 @@ const (
 	startButtonHeight   = 50
 	playerImagePath     = "sprites/ship1.png"
 	bulletImagePath     = "sprites/bill1.png"
+	obstacleImagePath   = "sprites/obstacle.png"
 	obstacleWidth       = 64
 	obstacleHeight      = 64
 	enemyImagePath      = "sprites/zombii.png"
@@ -40,11 +41,12 @@ var (
 	bulletImage     *ebiten.Image
 	enemyImage      *ebiten.Image
 	backgroundImage *ebiten.Image
-	targetImage     *ebiten.Image
+	obstacleImage   *ebiten.Image
 	playerX         = float64(screenWidth / 2)
 	playerY         = float64(screenHeight - playerHeight - 20)
 	bullets         []*bullet
 	obstacles       []*obstacle
+	enemies         []*enemy
 	score           int
 	gameOver        bool
 	gameStarted     bool
@@ -63,7 +65,15 @@ type bullet struct {
 type obstacle struct {
 	x, y   float64
 	deadly bool
+	rotation float64
 }
+
+type enemy struct {
+    x, y    float64
+    alive   bool
+    deadly  bool
+}
+
 
 
 type game struct{}
@@ -96,6 +106,7 @@ func (g *game) Update() error {
 	handleShooting()
 	updateBullets()
 	updateObstacles()
+	updateEnemies()
 	handleCollisions()
 
 	return nil
@@ -121,6 +132,7 @@ func (g *game) Draw(screen *ebiten.Image) {
 
 	drawBullets(screen)
 	drawObstacles(screen)
+	drawEnemies(screen)
 
 	ebitenutil.DebugPrint(screen, "Score: "+strconv.Itoa(score))
 }
@@ -151,6 +163,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	obstacleImage, _, err = ebitenutil.NewImageFromFile(obstacleImagePath)
+        if err != nil {
+                log.Fatal(err)
+        }
 
 	
 	audioContext = audio.NewContext(44100)
@@ -254,25 +271,93 @@ func updateBullets() {
 	bullets = newBullets
 }
 
-func updateObstacles() {
-	if rand.Intn(120) == 0 {
-		isDeadly := rand.Intn(2) == 0
-		obstacles = append(obstacles, &obstacle{
-			x:      float64(screenWidth),
-			y:      float64(rand.Intn(screenHeight - obstacleHeight)),
-			deadly: isDeadly,
-		})
-	}
+func updateEnemies() {
+    // Spawn enemies at random positions at the top
+    if rand.Intn(120) == 0 {
+	    numEnemies := 5 // Number of enemies to spawn at once
+	    for i := 0; i < numEnemies; i++ {
+		    enemyX := float64(rand.Intn(screenWidth - obstacleWidth))
+		    enemyY := 0.0
+		    spawnAllowed := true
+            for _, e := range enemies {
+                if e.alive && e.x == enemyX {
+                    spawnAllowed = false
+                    break
+                }
+            }
+	         if spawnAllowed {
+                enemies = append(enemies, &enemy{
+                    x:      enemyX,
+                    y:      enemyY,
+                    alive:  true,
+                    deadly: true,
+                })
+            }
+        }
+    }
 
-	for _, o := range obstacles {
-		o.x -= 2.0
-		if o.x < -obstacleWidth {
-			o.x = screenWidth
-			o.y = float64(rand.Intn(screenHeight - obstacleHeight))
-			o.deadly = rand.Intn(2) == 0
-		}
-	}
+
+
+
+
+    for _, e := range enemies {
+        if e.alive {
+            e.y += 2.0 // Adjust the enemy speed as needed
+            if e.y > screenHeight {
+                e.alive = false
+            }
+        }
+    }
+
+    // Remove dead enemies
+    newEnemies := []*enemy{}
+    for _, e := range enemies {
+        if e.alive {
+            newEnemies = append(newEnemies, e)
+        }
+    }
+    enemies = newEnemies
 }
+
+func updateObstacles() {
+    if rand.Intn(120) == 0 {
+        isDeadly := rand.Intn(2) == 0
+        obstacleY := float64(rand.Intn(screenHeight - obstacleHeight))
+        for obstacleY > playerY-obstacleHeight && obstacleY < playerY+playerHeight {
+            obstacleY = float64(rand.Intn(screenHeight - obstacleHeight))
+        }
+        obstacles = append(obstacles, &obstacle{
+            x:        float64(screenWidth),
+            y:        obstacleY,
+            deadly:   isDeadly,
+            rotation: 0.0,
+        })
+    }
+
+    for _, o := range obstacles {
+        o.x -= 2.0
+        if !o.deadly {
+            o.rotation += 0.05 // Adjust rotation speed as needed
+            if o.rotation >= 2*3.14159 {
+                o.rotation = 0
+            }
+        }
+        if o.x < -obstacleWidth {
+            o.x = screenWidth
+            obstacleY := float64(rand.Intn(screenHeight - obstacleHeight))
+            for obstacleY > playerY-obstacleHeight && obstacleY < playerY+playerHeight {
+                obstacleY = float64(rand.Intn(screenHeight - obstacleHeight))
+            }
+            o.y = obstacleY
+            o.deadly = rand.Intn(2) == 0
+            o.rotation = 0.0
+        }
+    }
+}
+
+  
+    
+  
 
 func handleCollisions() {
 	for _, b := range bullets {
@@ -288,7 +373,15 @@ func handleCollisions() {
 				}
 			}
 		}
-	}
+
+		for _, e := range enemies {
+            if collision(b.x, b.y, bulletWidth, bulletHeight, e.x, e.y, obstacleWidth, obstacleHeight) {
+                b.alive = false
+                e.alive = false
+                score++
+            }
+        }
+}
 
 	for _, o := range obstacles {
 		if collision(playerX, playerY, playerWidth, playerHeight, o.x, o.y, obstacleWidth, obstacleHeight) {
@@ -301,6 +394,16 @@ func handleCollisions() {
 			}
 		}
 	}
+
+	for _, e := range enemies {
+        if collision(playerX, playerY, playerWidth, playerHeight, e.x, e.y, obstacleWidth, obstacleHeight) {
+            if e.deadly {
+                gameOverSound.Rewind()
+                gameOverSound.Play()
+                gameOver = true
+            }
+        }
+    }
 }
 
 func collision(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
@@ -331,20 +434,35 @@ func drawBullets(screen *ebiten.Image) {
 func drawObstacles(screen *ebiten.Image) {
 	for _, o := range obstacles {
 		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(o.x, o.y)
 		if o.deadly {
-			screen.DrawImage(enemyImage, op)
-		} else {
-			ebitenutil.DrawRect(screen, o.x, o.y, obstacleWidth, obstacleHeight, color.RGBA{0, 255, 0, 255})
-		}
-	}
+                        op.GeoM.Translate(o.x, o.y)
+                        screen.DrawImage(enemyImage, op)
+                } else {
+                        op.GeoM.Translate(-float64(obstacleWidth)/2, -float64(obstacleHeight)/2)
+                        op.GeoM.Rotate(o.rotation)
+                        op.GeoM.Translate(o.x+float64(obstacleWidth)/2, o.y+float64(obstacleHeight)/2)
+                        screen.DrawImage(obstacleImage, op)
+                }
+        }
 }
+
+func drawEnemies(screen *ebiten.Image) {
+    for _, e := range enemies {
+        if e.alive {
+            op := &ebiten.DrawImageOptions{}
+            op.GeoM.Translate(e.x, e.y)
+            screen.DrawImage(enemyImage, op)
+        }
+    }
+}
+                
 
 func resetGame() {
 	playerX = float64(screenWidth / 2)
 	playerY = float64(screenHeight - playerHeight - 20)
 	bullets = []*bullet{}
 	obstacles = []*obstacle{}
+	enemies   = []*enemy{}
 	score = 0
 	gameOver = false
 }
