@@ -42,6 +42,9 @@ const (
 	startButtonHeight     = 50
 	maxLives        = 3
 	heartImagePath  = "sprites/heart.png"
+	explosionImagePath     = "sprites/explosion.png"
+	damagedSpaceshipImage1 = "sprites/damaged.png"
+	damagedSpaceshipImage2 = "sprites/damaged3.png"
 )
 
 var (
@@ -70,6 +73,11 @@ var (
 	spaceshipSound *audio.Player
 	spaceshipSoundPlaying bool
 	gameStarted bool
+	explosionImage         *ebiten.Image
+	damagedSpaceshipImages []*ebiten.Image
+	showExplosion          bool
+	explosionX, explosionY float64
+	explosionTimer         int
 )
 
 type bullet struct {
@@ -141,7 +149,15 @@ func (g *game) Draw(screen *ebiten.Image) {
         op.GeoM.Translate(float64(10+(i*30)), 40)
         screen.DrawImage(heartImage, op)
     }
-        
+    if showExplosion {
+        op := &ebiten.DrawImageOptions{}
+        op.GeoM.Translate(explosionX, explosionY)
+        screen.DrawImage(explosionImage, op)
+        explosionTimer--
+        if explosionTimer <= 0 {
+            showExplosion = false
+        }
+    }
 }
 	
 	
@@ -179,6 +195,21 @@ func main(){
 	}
 
 	heartImage, _, err = ebitenutil.NewImageFromFile(heartImagePath)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+      explosionImage, _, err = ebitenutil.NewImageFromFile(explosionImagePath)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    damagedSpaceshipImages = make([]*ebiten.Image, 2)
+    damagedSpaceshipImages[0], _, err = ebitenutil.NewImageFromFile(damagedSpaceshipImage1)
+    if err != nil {
+        log.Fatal(err)
+    }
+    damagedSpaceshipImages[1], _, err = ebitenutil.NewImageFromFile(damagedSpaceshipImage2)
     if err != nil {
         log.Fatal(err)
     }
@@ -335,9 +366,16 @@ func updateEnemies() {
 			if e.y + enemyHeight >= screenHeight {
 				enemies = append(enemies[:i], enemies[i+1:]...)
 				lives--
+				showExplosion = true
+				explosionX = playerX + playerWidth/2 - float64(explosionImage.Bounds().Dx())/2
+				explosionY = playerY - float64(explosionImage.Bounds().Dy())/2
+				explosionTimer = 6
 				if lives <= 0 {
 					gameOver = true
+				}else{
+					playerImage = damagedSpaceshipImages[maxLives-lives-1]
 				}
+
 			}
 		}
 	}
@@ -387,6 +425,14 @@ func resetGame() {
 	gameOver = false
 	gameOverSoundPlayed = false
 	lives   = maxLives
+	//playerImage = "sprites/ship1.png"
+	showExplosion = false
+	explosionTimer = 0
+	 var err error
+    playerImage, _, err = ebitenutil.NewImageFromFile(playerImagePath)
+    if err != nil {
+        log.Fatal(err)
+    }
 	initializeEnemies()
 	go spawnEnemies()
 
