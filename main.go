@@ -40,6 +40,8 @@ const (
 	spaceshipSoundPath = "sounds/spaceship.wav"
 	startButtonWidth      = 200
 	startButtonHeight     = 50
+	maxLives        = 3
+	heartImagePath  = "sprites/heart.png"
 )
 
 var (
@@ -53,6 +55,8 @@ var (
 	enemies     []*enemy
 	gameOver    bool
 	score       int 
+	lives       int 
+	heartImage  *ebiten.Image
 	gameOverSoundPlayed bool
 	startButtonX    = float64((screenWidth - startButtonWidth) / 2)
         startButtonY    = float64((screenHeight - startButtonHeight) / 2)
@@ -132,6 +136,11 @@ func (g *game) Draw(screen *ebiten.Image) {
 	drawBullets(screen)
 	drawEnemies(screen)
 	ebitenutil.DebugPrint(screen, "Score: "+strconv.Itoa(score))
+	for i := 0; i < lives; i++ {
+        op := &ebiten.DrawImageOptions{}
+        op.GeoM.Translate(float64(10+(i*30)), 40)
+        screen.DrawImage(heartImage, op)
+    }
         
 }
 	
@@ -168,6 +177,11 @@ func main(){
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	heartImage, _, err = ebitenutil.NewImageFromFile(heartImagePath)
+    if err != nil {
+        log.Fatal(err)
+    }
 
 	audioContext = audio.NewContext(44100)
 
@@ -319,7 +333,11 @@ func updateEnemies() {
 		if e.alive {
 			e.y += enemySpeed
 			if e.y + enemyHeight >= screenHeight {
-				gameOver = true
+				enemies = append(enemies[:i], enemies[i+1:]...)
+				lives--
+				if lives <= 0 {
+					gameOver = true
+				}
 			}
 		}
 	}
@@ -368,6 +386,7 @@ func resetGame() {
 	score   = 0
 	gameOver = false
 	gameOverSoundPlayed = false
+	lives   = maxLives
 	initializeEnemies()
 	go spawnEnemies()
 
