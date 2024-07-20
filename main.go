@@ -35,6 +35,8 @@ const (
     bulletSoundPath = "sounds/bullet.wav"
     gameOverSoundPath = "sounds/game_over.wav"
     spaceshipSoundPath = "sounds/spaceship.wav"
+    killedSoundPath  ="sounds/killed.wav"
+    destroySoundPath = "sounds/destroy.wav"
     startButtonWidth   = 200
     startButtonHeight   = 50
     maxLives    = 3
@@ -72,6 +74,7 @@ var (
     bulletSound *audio.Player
     gameOverSound *audio.Player
     spaceshipSound *audio.Player
+    killedSound *audio.Player
     spaceshipSoundPlaying bool
     gameStarted bool
     explosionImage     *ebiten.Image
@@ -79,6 +82,7 @@ var (
     showExplosion     bool
     explosionX, explosionY float64
     explosionTimer     int
+    destroySound *audio.Player
 )
 
 type bullet struct {
@@ -241,6 +245,15 @@ func main(){
         log.Fatal(err)
     }
 
+    killedSound, err = loadSound(audioContext, killedSoundPath)
+    if err != nil {
+        log.Fatal(err)
+    }
+      destroySound, err = loadSound(audioContext, destroySoundPath)
+    if err != nil {
+        log.Fatal(err)
+    }
+
      spaceshipSound, err = loadSound(audioContext, spaceshipSoundPath)
     if err != nil {
         log.Fatal(err)
@@ -393,6 +406,8 @@ func updateEnemies() {
                     gameOver = true
                 }else{
                     playerImage = damagedSpaceshipImages[maxLives-lives-1]
+		    destroySound.Rewind()
+                    destroySound.Play()
                 }
 
             }
@@ -426,6 +441,8 @@ func handleCollisions() {
                     y: e.y,
                     timer: flameDuration,
                 })
+		killedSound.Rewind()
+                killedSound.Play()
                 break
             }
         }
