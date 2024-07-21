@@ -34,7 +34,6 @@ const (
     maxEnemies   = 7
     bulletSoundPath = "sounds/bullet.wav"
     gameOverSoundPath = "sounds/game_over.wav"
-    spaceshipSoundPath = "sounds/spaceship.wav"
     killedSoundPath  ="sounds/killed.wav"
     destroySoundPath = "sounds/destroy.wav"
     startButtonWidth   = 200
@@ -45,6 +44,7 @@ const (
     damagedSpaceshipImage1 = "sprites/damaged.png"
     damagedSpaceshipImage2 = "sprites/damaged3.png"
     flameImagePath  = "sprites/enemy_damaged.png"
+    thrustSoundPath ="sounds/spaceship.wav"
     flameDuration   = 10
 )
 
@@ -66,14 +66,10 @@ var (
     gameOverSoundPlayed bool
     startButtonX  = float64((screenWidth - startButtonWidth) / 2)
     startButtonY  = float64((screenHeight - startButtonHeight) / 2)
-    //buttonX      = float64((screenWidth - buttonWidth) / 2)
-    //restartButtonY  = float64((screenHeight - buttonHeight) / 2)
-    //exitButtonY    = restartButtonY + buttonHeight + 10
 
     audioContext *audio.Context
     bulletSound *audio.Player
     gameOverSound *audio.Player
-    spaceshipSound *audio.Player
     killedSound *audio.Player
     spaceshipSoundPlaying bool
     gameStarted bool
@@ -83,6 +79,8 @@ var (
     explosionX, explosionY float64
     explosionTimer     int
     destroySound *audio.Player
+    thrusterSound *audio.Player
+    thrusterSoundPlaying bool
 )
 
 type bullet struct {
@@ -125,6 +123,10 @@ func (g *game) Update() error {
                 float64(mouseY) >= startButtonY && float64(mouseY) <= startButtonY+startButtonHeight {
                 resetGame()
             }
+	     if thrusterSoundPlaying {
+            thrusterSound.Rewind()
+            thrusterSoundPlaying = false
+        }
         }
         return nil
     }
@@ -240,6 +242,11 @@ func main(){
         log.Fatal(err)
     }
 
+    thrusterSound, err = loadSound(audioContext, thrustSoundPath)
+    if err != nil {
+        log.Fatal(err)
+    }
+
     gameOverSound, err = loadSound(audioContext, gameOverSoundPath)
     if err != nil {
         log.Fatal(err)
@@ -254,13 +261,7 @@ func main(){
         log.Fatal(err)
     }
 
-     spaceshipSound, err = loadSound(audioContext, spaceshipSoundPath)
-    if err != nil {
-        log.Fatal(err)
-    }
-
     initializeEnemies()
-    // rand.Seed(time.Now().UnixNano())
     ebiten.SetWindowSize(screenWidth, screenHeight)
     ebiten.SetWindowTitle("Side-Scrolling Shooter Game")
 
@@ -333,13 +334,14 @@ func countAliveEnemies() int {
 }
 
 func handlePlayerMovement() {
-    moving := false
+	moving := false
     if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
         playerX -= playerSpeed
-    }
-    if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
+        moving = true
+    } else if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
         playerX += playerSpeed
-    }
+        moving = true
+     } 
 
     if playerX < 0 {
         playerX = 0
@@ -349,18 +351,23 @@ func handlePlayerMovement() {
     }
 
     if moving {
-        if !spaceshipSoundPlaying {
-            spaceshipSound.Rewind()
-            spaceshipSound.Play()
-            spaceshipSoundPlaying = true
+        if !thrusterSoundPlaying {
+            thrusterSound.Rewind()
+            thrusterSound.Play()
+            thrusterSoundPlaying = true
         }
     } else {
-        if spaceshipSoundPlaying {
-            spaceshipSound.Pause()
-            spaceshipSoundPlaying = false
+        if thrusterSoundPlaying {
+            thrusterSound.Rewind()
+            thrusterSoundPlaying = false
         }
     }
+
+
 }
+
+
+
 
 func handleShooting() {
     if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
@@ -467,15 +474,6 @@ func drawFlames(screen *ebiten.Image) {
     }
 }
 
-//func checkGameOver() {
-//   for _, e := range enemies {
-//       if e.alive && e.y > screenHeight {
-//           gameOver = true
-//           break
-//       }
-//   }
-//}
-
 func resetGame() {
     playerX = float64(screenWidth / 2)
     playerY = float64(screenHeight - playerHeight - 20)
@@ -485,7 +483,6 @@ func resetGame() {
     gameOver = false
     gameOverSoundPlayed = false
     lives  = maxLives
-    //playerImage = "sprites/ship1.png"
     showExplosion = false
     explosionTimer = 0
      var err error
@@ -495,11 +492,6 @@ func resetGame() {
   }
     initializeEnemies()
     go spawnEnemies()
-
-     if spaceshipSoundPlaying {
-            spaceshipSound.Pause()
-            spaceshipSoundPlaying = false
-        }
 }
 
 func collision(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
