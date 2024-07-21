@@ -6,6 +6,7 @@ import (
 	"time"
 	"math/rand"
 	"strconv"
+	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -46,6 +47,10 @@ const (
     flameImagePath  = "sprites/enemy_damaged.png"
     thrustSoundPath ="sounds/spaceship.wav"
     flameDuration   = 10
+    restartButtonWidth  = 200
+    restartButtonHeight = 50
+    exitButtonWidth     = 200
+    exitButtonHeight    = 50
 )
 
 var (
@@ -81,6 +86,10 @@ var (
     destroySound *audio.Player
     thrusterSound *audio.Player
     thrusterSoundPlaying bool
+    restartButtonX = float64((screenWidth - restartButtonWidth) / 2)
+    restartButtonY = float64((screenHeight-restartButtonHeight)/2 + 60)
+    exitButtonX    = float64((screenWidth - exitButtonWidth) / 2)
+    exitButtonY    = float64((screenHeight-exitButtonHeight)/2 + 120)
 )
 
 type bullet struct {
@@ -119,9 +128,12 @@ func (g *game) Update() error {
     if gameOver {
         if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
             mouseX, mouseY := ebiten.CursorPosition()
-            if float64(mouseX) >= startButtonX && float64(mouseX) <= startButtonX+startButtonWidth &&
-                float64(mouseY) >= startButtonY && float64(mouseY) <= startButtonY+startButtonHeight {
+            if float64(mouseX) >= restartButtonX && float64(mouseX) <= restartButtonX+startButtonWidth &&
+                float64(mouseY) >= restartButtonY && float64(mouseY) <= restartButtonY+startButtonHeight {
                 resetGame()
+            }else if float64(mouseX) >= exitButtonX && float64(mouseX) <= exitButtonX+ startButtonWidth &&
+                float64(mouseY) >= exitButtonY && float64(mouseY) <= exitButtonY+ startButtonHeight {
+                os.Exit(0)
             }
 	     if thrusterSoundPlaying {
             thrusterSound.Rewind()
@@ -531,4 +543,9 @@ func drawGameOverScreen(screen *ebiten.Image) {
     ebitenutil.DrawRect(screen, startButtonX, startButtonY, startButtonWidth, startButtonHeight, color.RGBA{255, 0, 0, 255})
     ebitenutil.DebugPrintAt(screen, "GAME OVER", int(startButtonX)+10, int(startButtonY)+10)
     ebitenutil.DebugPrintAt(screen, "SCORE: "+strconv.Itoa(score), int(startButtonX)+10, int(startButtonY)+30)
+    ebitenutil.DrawRect(screen, restartButtonX, restartButtonY, startButtonWidth, startButtonHeight, color.White)
+    ebitenutil.DebugPrintAt(screen, "RESTART", int(restartButtonX)+10, int(restartButtonY)+10)
+
+    ebitenutil.DrawRect(screen, exitButtonX, exitButtonY, startButtonWidth, startButtonHeight, color.White)
+    ebitenutil.DebugPrintAt(screen, "EXIT", int(exitButtonX)+10, int(exitButtonY)+10)
 }
