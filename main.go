@@ -13,6 +13,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/wav"
+       	"golang.org/x/image/font/basicfont"
+	"github.com/hajimehoshi/ebiten/v2/text"
 
 )
 
@@ -20,8 +22,8 @@ const (
     screenWidth   = 800
     screenHeight  = 600
     playerSpeed   = 4.0
-    playerWidth   = 64
-    playerHeight  = 64
+    playerWidth   = 90
+    playerHeight  = 90
     playerImagePath = "sprites/ship1.png"
     bulletImagePath = "sprites/bill1.png"
     enemyImagePath = "sprites/zombii.png"
@@ -51,6 +53,9 @@ const (
     restartButtonHeight = 50
     exitButtonWidth     = 200
     exitButtonHeight    = 50
+    numSpaceships = 6
+    spaceshipSpacing   = 80
+    textOffsetY        = 100
 )
 
 var (
@@ -90,6 +95,9 @@ var (
     restartButtonY = float64((screenHeight-restartButtonHeight)/2 + 60)
     exitButtonX    = float64((screenWidth - exitButtonWidth) / 2)
     exitButtonY    = float64((screenHeight-exitButtonHeight)/2 + 120)
+    spaceshipImages []*ebiten.Image
+    selectedSpaceship int
+    selectingSpaceship bool
 )
 
 type bullet struct {
@@ -112,13 +120,26 @@ type flame struct {
 
 type game struct{}
 
+func loadSpaceshipImages() {
+    for i := 1; i <= numSpaceships; i++ {
+        img, _, err := ebitenutil.NewImageFromFile("sprites/ship" + strconv.Itoa(i) + ".png")
+        if err != nil {
+            log.Fatal(err)
+        }
+        spaceshipImages = append(spaceshipImages, img)
+    }
+}
+
 func (g *game) Update() error {
         if !gameStarted {
-        if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		if selectingSpaceship {
+            handleSpaceshipSelection()
+        } else if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
             mouseX, mouseY := ebiten.CursorPosition()
             if float64(mouseX) >= startButtonX && float64(mouseX) <= startButtonX+startButtonWidth &&
                 float64(mouseY) >= startButtonY && float64(mouseY) <= startButtonY+startButtonHeight {
-                gameStarted = true
+               // gameStarted = true
+		selectingSpaceship = true
                 resetGame()
             }
         }
@@ -130,7 +151,7 @@ func (g *game) Update() error {
             mouseX, mouseY := ebiten.CursorPosition()
             if float64(mouseX) >= restartButtonX && float64(mouseX) <= restartButtonX+startButtonWidth &&
                 float64(mouseY) >= restartButtonY && float64(mouseY) <= restartButtonY+startButtonHeight {
-                resetGame()
+			resetGame()
             }else if float64(mouseX) >= exitButtonX && float64(mouseX) <= exitButtonX+ startButtonWidth &&
                 float64(mouseY) >= exitButtonY && float64(mouseY) <= exitButtonY+ startButtonHeight {
                 os.Exit(0)
@@ -154,13 +175,17 @@ func (g *game) Update() error {
 
 func (g *game) Draw(screen *ebiten.Image) {
         if !gameStarted {
-        drawStartButton(screen)
+        if selectingSpaceship {
+            drawSpaceshipSelectionScreen(screen)
+        } else {
+            drawStartButton(screen)
+        }
         return
     }
 
     if gameOver {
         drawGameOverScreen(screen)
-        return
+	return
     }
 
     op := &ebiten.DrawImageOptions{}
@@ -236,6 +261,7 @@ func main(){
   if err != nil {
     log.Fatal(err)
   }
+  loadSpaceshipImages()
 
   damagedSpaceshipImages = make([]*ebiten.Image, 2)
   damagedSpaceshipImages[0], _, err = ebitenutil.NewImageFromFile(damagedSpaceshipImage1)
@@ -385,8 +411,10 @@ func handleShooting() {
     if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
         bulletSound.Rewind()
         bulletSound.Play()
-        bulletX := playerX + (playerWidth / 2) - (bulletWidth + 0.5 / 2)
-        bulletY := playerY - bulletHeight
+	playerImageWidth := playerImage.Bounds().Dx()  // Get the width of the current spaceship image
+        bulletX := playerX + float64(playerImageWidth) / 2 - float64(bulletWidth + 40) / 2
+       // bulletX := playerX + (playerWidth / 2) - (bulletWidth+ 70/2)
+        bulletY := playerY - bulletHeight - 15
 
         bullets = append(bullets, &bullet{
             x:   bulletX,
@@ -497,13 +525,14 @@ func resetGame() {
     lives  = maxLives
     showExplosion = false
     explosionTimer = 0
-     var err error
-  playerImage, _, err = ebitenutil.NewImageFromFile(playerImagePath)
-  if err != nil {
-    log.Fatal(err)
-  }
+    // var err error
+    playerImage = spaceshipImages[selectedSpaceship]
+ // playerImage, _, err = ebitenutil.NewImageFromFile(playerImagePath)
+  //if err != nil {
+   // log.Fatal(err)
+  //}
     initializeEnemies()
-    go spawnEnemies()
+    go spawnEnemies() 
 }
 
 func collision(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
@@ -516,6 +545,38 @@ func drawBullets(screen *ebiten.Image) {
             op := &ebiten.DrawImageOptions{}
             op.GeoM.Translate(b.x, b.y)
             screen.DrawImage(bulletImage, op)
+        }
+    }
+}
+
+func drawSpaceshipSelectionScreen(screen *ebiten.Image) {
+	face := basicfont.Face7x13
+
+    text.Draw(screen, "Choose your spaceship:", face, screenWidth/2 - 80, textOffsetY, color.White)
+    for i := 0; i < numSpaceships; i++ {
+         x := float64((i % 3) * (playerWidth + spaceshipSpacing) + (screenWidth - (playerWidth*3 + spaceshipSpacing*2)) / 2)
+        y := float64((i / 3) * (playerHeight + spaceshipSpacing) + (screenHeight - (playerHeight*2 + spaceshipSpacing)) / 2)
+        op := &ebiten.DrawImageOptions{}
+        op.GeoM.Translate(x, y)
+        screen.DrawImage(spaceshipImages[i], op)
+        ebitenutil.DebugPrintAt(screen, "Spaceship " + strconv.Itoa(i+1), int(x), int(y + playerHeight + 5))
+    }
+}
+
+func handleSpaceshipSelection() {
+    if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+        mouseX, mouseY := ebiten.CursorPosition()
+        for i := 0; i < numSpaceships; i++ {
+             x := float64((i % 3) * (playerWidth + spaceshipSpacing) + (screenWidth - (playerWidth*3 + spaceshipSpacing*2)) / 2)
+            y := float64((i / 3) * (playerHeight + spaceshipSpacing) + (screenHeight - (playerHeight*2 + spaceshipSpacing)) / 2)
+            if float64(mouseX) >= x && float64(mouseX) <= x + playerWidth &&
+               float64(mouseY) >= y && float64(mouseY) <= y + playerHeight {
+                selectedSpaceship = i
+                selectingSpaceship = false
+                gameStarted = true
+                resetGame()
+                break
+            }
         }
     }
 }
