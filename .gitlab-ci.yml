@@ -1,13 +1,11 @@
 # The Docker image that will be used to build your app
-image: golang:1.18
+image: node:14
 # Functions that should be executed before the build script is run
 before_script:
-  - go mod download
-  - npm install
+  - echo "Setting up for build"
 pages:
   script:
-    - go build -o main
-    - npm run build
+    - make build
   artifacts:
     paths:
       # The folder that contains the files to be exposed at the Page URL
