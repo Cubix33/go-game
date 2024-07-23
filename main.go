@@ -219,12 +219,6 @@ func (g *game) Layout(outsideWidth, outsideHeight int) (int, int) {
     return screenWidth, screenHeight
 }
 
-//func main() {
-//   c := make(chan struct{}, 0)
-//   go runGame()
-//   <-c
-//}
-
 func main(){
     var err error
     playerImage, _, err = ebitenutil.NewImageFromFile(playerImagePath)
