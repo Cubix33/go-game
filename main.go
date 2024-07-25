@@ -21,7 +21,7 @@ import (
 const (
     screenWidth   = 800
     screenHeight  = 600
-    playerSpeed   = 4.0
+    playerSpeed   = 2.0
     playerWidth   = 90
     playerHeight  = 90
     playerImagePath = "sprites/ship1.png"
@@ -31,7 +31,7 @@ const (
     bulletSpeed   = 8.0
     bulletWidth   = 8
     bulletHeight  = 7
-    enemySpeed   = 2.0
+    enemySpeed   = 4.0
     enemyWidth   = 64
     enemyHeight   = 64
     maxEnemies   = 7
